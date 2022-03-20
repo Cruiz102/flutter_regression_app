@@ -13,7 +13,9 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      
       theme: ThemeData(primarySwatch: Colors.blue),
+      debugShowCheckedModeBanner: false,
       home: _MyHomePage(),
     );
   }
@@ -49,7 +51,7 @@ class _MyHomePageState extends State<_MyHomePage> {
   int index = 0;
   bool visibility = false;
 
-  int maxPoints = 1000;
+  int maxPoints = 20;
   int pointCounter = 0;
 
 
@@ -61,14 +63,14 @@ class _MyHomePageState extends State<_MyHomePage> {
       for (int x = 0; x < xLine.length; x++)
         simpleLinearRegression(Xvalues, YValues).predict(xLine[x])];
     }
-    else if((_selection == Regressions.quadratic) &  (Xvalues.length > 3)) {
+    else if((_selection == Regressions.quadratic) &  (Xvalues.length > 2)) {
           xpoints = [for(int i = 0; i< Xvalues.length; i++) PolyFit(Xvalues, YValues,2).predict(Xvalues[i])];
       predictedPoints = [
       for (int x = 0; x < xLine.length; x++)
       PolyFit(Xvalues, YValues, 2).predict(xLine[x])  
       ];
     }
-    else if(_selection == Regressions.cubic) {
+    else if(( _selection == Regressions.cubic) &   (Xvalues.length > 4)) {
       xpoints = [for(int i = 0; i< Xvalues.length; i++) PolyFit(Xvalues, YValues,3).predict(Xvalues[i])];
       predictedPoints = [
       for (int x = 0; x < xLine.length; x++)
@@ -83,9 +85,9 @@ class _MyHomePageState extends State<_MyHomePage> {
   @override
   void initState() {
     super.initState();
-    xLine = linspace(-20, 20, num: 35);
-    Xvalues = Array([1,6]);
-    YValues = Array([1,5]);
+    xLine = linspace(-20, 20, num: 55);
+    Xvalues = Array([0,0.00000001,0.00000002, 0.00000003]);
+    YValues = Array([0,0.00000001,0.00000002, 0.00000003]);
     
     points = [
       for (int i = 0; i < Xvalues.length; i++) SalesData(Xvalues[i], YValues[i])
@@ -127,12 +129,13 @@ class _MyHomePageState extends State<_MyHomePage> {
       points.add(SalesData(offpoint.x, offpoint.y));
     Xvalues.add(offpoint.x);
     YValues.add(offpoint.y);
-    points.add(SalesData(offpoint.x, offpoint.y));
        
     
     // Check what type of Regression is used
     checkSelections();
-    predictedSales = [for (var i = 0; i < xLine.length; i++) SalesData(xLine[i], predictedPoints[i])];
+       if(  (predictedPoints.length != 0)){
+    predictedSales = [for (var i = 0; i < xLine.length; i++) SalesData(xLine[i], predictedPoints[i])];}
+    
     calculateMeanSquared(Array(xpoints), YValues);
     pointCounter += 1;
     }
@@ -143,6 +146,19 @@ class _MyHomePageState extends State<_MyHomePage> {
         setPoints = !setPoints;
     
     });
+  }
+
+   String showMSEText(){
+     if (MeanSquaredError <= 0.0001){
+       return " Mean Square Error \n  0";
+  
+
+     }
+     else{
+    
+       return "Mean Square error \n $MeanSquaredError";
+     }
+
   }
 
   // This is the type used by the popup menu below.
@@ -167,28 +183,42 @@ class _MyHomePageState extends State<_MyHomePage> {
       setState(() {
         Xvalues.clear();
         YValues.clear();
-        Xvalues.add(0);
-        YValues.add(0);
-        Xvalues.add(3);
-        YValues.add(2);
-        Xvalues.add(-1);
-        YValues.add(-1);
         points.clear();
         pointCounter = 0;
         predictedPoints.clear();
         predictedSales.clear();
+        Xvalues = Array([0,0.00000001,0.00000002,0.00000003]);
+      YValues = Array([0,0.00000001,0.00000002,0.00000003]);
+    
+    points = [
+      for (int i = 0; i < Xvalues.length; i++) SalesData(Xvalues[i], YValues[i])
+    ];
+    xpoints = [for(int i = 0; i< Xvalues.length; i++) simpleLinearRegression(Xvalues, YValues).predict(Xvalues[i])];
+
+    checkSelections();
+
+    if(  (predictedPoints.length != 0)){
+    predictedSales = [for (var i = 0; i < xLine.length; i++) SalesData(xLine[i], predictedPoints[i])];}
+    
+
+    calculateMeanSquared(Array(xpoints), YValues);
         
       });
     }
 
     // This is the type used by the popup menu below.
     var a = PopupMenuButton<Regressions>(
+      offset:  Offset(20,100),
+      elevation: 100,
         onSelected: (Regressions result) {
           setState(() {
             _selection = result;
             print(_selection);
               // Check what type of Regression is used
               checkSelections();
+               if(  (predictedPoints.length != 0)){
+              predictedSales = [for (var i = 0; i < xLine.length; i++) SalesData(xLine[i], predictedPoints[i])];}
+    
               calculateMeanSquared(Array(xpoints), YValues);
           });
         },
@@ -203,7 +233,7 @@ class _MyHomePageState extends State<_MyHomePage> {
 
     _floatingButtom = [
       FloatingActionButton(
-        child: Icon(Icons.ac_unit_outlined),
+        child: Icon(Icons.play_arrow),
         onPressed: F,
       ),
       Container(
@@ -215,9 +245,9 @@ class _MyHomePageState extends State<_MyHomePage> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            FloatingActionButton(onPressed: clear, child: Icon(Icons.clear_sharp)),
-            FloatingActionButton(child: setPoints?  Icon(Icons.access_alarm_outlined): Icon(Icons.add_circle_outline, color: Colors.red), onPressed: setpointFunction),
-            FloatingActionButton(onPressed: () {setState(() {
+            FloatingActionButton(onPressed: clear, child: Icon(Icons.clear_sharp, color: Colors.black)   ),
+            FloatingActionButton(child: !setPoints?  Icon(Icons.access_alarm_outlined, color: Colors.black): Icon(Icons.add_circle_outline, color: Colors.red), onPressed: setpointFunction),
+            FloatingActionButton(child: Icon(IconData(0xf05d1, fontFamily: 'MaterialIcons'), color: Colors.black),onPressed: () {setState(() {
               visibility = !visibility;
             });}),
             IconButton(
@@ -314,7 +344,7 @@ class _MyHomePageState extends State<_MyHomePage> {
                 
 
               )]),
-              child: Text("Mean Square error \n $MeanSquaredError", style: TextStyle(fontSize: 20)),
+              child: Text(showMSEText(), style: TextStyle(fontSize: 20)),
               height:80, width:230)),
               Visibility(
                 visible:  pointCounter >= maxPoints,
