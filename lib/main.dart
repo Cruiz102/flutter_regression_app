@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_regression_app/gradient_descend.dart';
 import 'package:flutter_regression_app/linear_regression.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 import 'package:scidart/numdart.dart';
+import "sales_data.dart";
+import 'gradient_descend.dart';
 
 void main() {
   return runApp(MyApp());
@@ -29,42 +30,79 @@ class _MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<_MyHomePage> {
-  bool setPoints = false;
+  // Change if we can add Points to the Chart
+  bool setPoints = true;
   late ChartSeriesController _seriesController;
-  late Regressions _selection;
+  // This variable is for selecting what value goes to the type of regression pop menu
+   Regressions _selection = Regressions.linear;
+  // xLine is the sets of points in the x axis
   var xLine;
-  var b;
-  late List<double> b2;
-  var d;
+  // Values in Sales Data Structure
   var points;
-  late Array lis1;
-  late Array lis2;
+  late Array Xvalues;
+  late Array YValues;
+  var predictedPoints;
+  var predictedSales;
+  var MeanSquaredError;
+  var xpoints;
   List<Widget> _floatingButtom = [];
   int index = 0;
+  bool visibility = false;
 
+  int maxPoints = 1000;
+  int pointCounter = 0;
+
+
+  void checkSelections() {
+        // Check what type of Regression is used
+   if(_selection ==  Regressions.linear) {
+    xpoints = [for(int i = 0; i< Xvalues.length; i++) simpleLinearRegression(Xvalues, YValues).predict(Xvalues[i])];
+    predictedPoints = [
+      for (int x = 0; x < xLine.length; x++)
+        simpleLinearRegression(Xvalues, YValues).predict(xLine[x])];
+    }
+    else if((_selection == Regressions.quadratic) &  (Xvalues.length > 3)) {
+          xpoints = [for(int i = 0; i< Xvalues.length; i++) PolyFit(Xvalues, YValues,2).predict(Xvalues[i])];
+      predictedPoints = [
+      for (int x = 0; x < xLine.length; x++)
+      PolyFit(Xvalues, YValues, 2).predict(xLine[x])  
+      ];
+    }
+    else if(_selection == Regressions.cubic) {
+      xpoints = [for(int i = 0; i< Xvalues.length; i++) PolyFit(Xvalues, YValues,3).predict(Xvalues[i])];
+      predictedPoints = [
+      for (int x = 0; x < xLine.length; x++)
+      // gradientDescend( Xvalues, YValues, func).predictxx(xLine[x])  
+      PolyFit(Xvalues, YValues, 3).predict(xLine[x]) ];
+    }
+
+  }
+
+
+  // Initialize the variables
   @override
   void initState() {
     super.initState();
-    xLine = linspace(1, 20, num: 100);
-    lis1 = Array([1, 9]);
-    lis2 = Array([2, 4]);
+    xLine = linspace(-20, 20, num: 35);
+    Xvalues = Array([1,6]);
+    YValues = Array([1,5]);
+    
     points = [
-      for (int i = 0; i < lis1.length; i++) _SalesData(lis2[i], lis1[i])
+      for (int i = 0; i < Xvalues.length; i++) SalesData(Xvalues[i], YValues[i])
     ];
-    xLine.toList();
-    b = [
-      for (int x = 0; x < xLine.length; x++)
-        linearRegression(lis2, lis1).predict(xLine[x])
-    ];
-    double func(x) {
-      return pow(x, 2) + x + 1;
-    }
+    xpoints = [for(int i = 0; i< Xvalues.length; i++) simpleLinearRegression(Xvalues, YValues).predict(Xvalues[i])];
 
-    var gra = gradientDescend(lis2, lis1, func);
-    b2 = [for (int x = 0; x < xLine.length; x++) gra.predict(x)];
+    checkSelections();
 
-    var c = xLine.length;
-    d = [for (var i = 0; i < c; i++) _SalesData(xLine[i], b2[i])];
+    if(  (predictedPoints.length != 0)){
+    predictedSales = [for (var i = 0; i < xLine.length; i++) SalesData(xLine[i], predictedPoints[i])];}
+    
+
+    calculateMeanSquared(Array(xpoints), YValues);
+
+
+
+
   }
 
   @override
@@ -72,25 +110,38 @@ class _MyHomePageState extends State<_MyHomePage> {
     super.dispose();
   }
 
+  void calculateMeanSquared( predicted, real){
+    MeanSquaredError = 0;
+    var list1 = real - predicted;
+    list1 = list1 * list1;
+    for(int x = 0; x < list1.length; x++){
+      MeanSquaredError += list1[x];
+
+    }
+    MeanSquaredError = MeanSquaredError/ list1.length;
+    print(MeanSquaredError);
+  }
+
   void updateChart(offpoint) {
-    lis1.add(offpoint.y);
-    lis2.add(offpoint.x);
-    points.add(_SalesData(offpoint.x, offpoint.y));
-    b = [
-      for (int x = 0; x < xLine.length; x++)
-        linearRegression(lis2, lis1).predict(xLine[x])
-    ];
-    var c = xLine.length;
-    d = [for (var i = 0; i < c; i++) _SalesData(xLine[i], b[i])];
+    if(pointCounter < maxPoints){
+      points.add(SalesData(offpoint.x, offpoint.y));
+    Xvalues.add(offpoint.x);
+    YValues.add(offpoint.y);
+    points.add(SalesData(offpoint.x, offpoint.y));
+       
+    
+    // Check what type of Regression is used
+    checkSelections();
+    predictedSales = [for (var i = 0; i < xLine.length; i++) SalesData(xLine[i], predictedPoints[i])];
+    calculateMeanSquared(Array(xpoints), YValues);
+    pointCounter += 1;
+    }
   }
 
   void setpointFunction() {
     setState(() {
-      if (setPoints) {
-        setPoints = false;
-      } else {
-        setPoints = true;
-      }
+        setPoints = !setPoints;
+    
     });
   }
 
@@ -98,8 +149,6 @@ class _MyHomePageState extends State<_MyHomePage> {
 
 // This menu button widget updates a _selection field (of type WhyFarther,
 // not shown here).
-
-  List<_SalesData> data = [_SalesData(1, 0), _SalesData(2, 1)];
   @override
   Widget build(BuildContext context) {
     void F() {
@@ -116,13 +165,19 @@ class _MyHomePageState extends State<_MyHomePage> {
     // Clear all the points
     void clear() {
       setState(() {
-        lis1.clear();
-        lis2.clear();
-        lis1.add(0);
-        lis2.add(0);
+        Xvalues.clear();
+        YValues.clear();
+        Xvalues.add(0);
+        YValues.add(0);
+        Xvalues.add(3);
+        YValues.add(2);
+        Xvalues.add(-1);
+        YValues.add(-1);
         points.clear();
-        b.clear();
-        d.clear();
+        pointCounter = 0;
+        predictedPoints.clear();
+        predictedSales.clear();
+        
       });
     }
 
@@ -132,6 +187,9 @@ class _MyHomePageState extends State<_MyHomePage> {
           setState(() {
             _selection = result;
             print(_selection);
+              // Check what type of Regression is used
+              checkSelections();
+              calculateMeanSquared(Array(xpoints), YValues);
           });
         },
         itemBuilder: (BuildContext context) => <PopupMenuEntry<Regressions>>[
@@ -157,9 +215,11 @@ class _MyHomePageState extends State<_MyHomePage> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            FloatingActionButton(onPressed: clear),
-            FloatingActionButton(onPressed: setpointFunction),
-            FloatingActionButton(onPressed: () {}),
+            FloatingActionButton(onPressed: clear, child: Icon(Icons.clear_sharp)),
+            FloatingActionButton(child: setPoints?  Icon(Icons.access_alarm_outlined): Icon(Icons.add_circle_outline, color: Colors.red), onPressed: setpointFunction),
+            FloatingActionButton(onPressed: () {setState(() {
+              visibility = !visibility;
+            });}),
             IconButton(
               icon: Icon(Icons.cancel_presentation),
               onPressed: F,
@@ -172,23 +232,25 @@ class _MyHomePageState extends State<_MyHomePage> {
 
     return Scaffold(
         appBar: AppBar(
-          title: const Text('Polynomial Regression'),
+          centerTitle: true,
+          title:  Text('Polynomial Regression'),
         ),
         body:
             //Initialize the chart widget
             Stack(children: [
           SfCartesianChart(
+            enableAxisAnimation: true,
             zoomPanBehavior: ZoomPanBehavior(
                 enablePanning: true,
                 enableMouseWheelZooming: true,
                 enablePinching: true),
-            primaryXAxis: NumericAxis(isVisible: true, maximum: 20),
-            primaryYAxis: NumericAxis(minimum: -20),
-            series: <ChartSeries<_SalesData, double>>[
-              LineSeries<_SalesData, double>(
-                dataSource: d,
-                xValueMapper: (_SalesData sales, _) => sales.year,
-                yValueMapper: (_SalesData sales, _) => sales.sales,
+            primaryXAxis: NumericAxis(isVisible: true, maximum: 20, minimum: -20),
+            primaryYAxis: NumericAxis(minimum: -20,maximum: 20),
+            series: <ChartSeries<SalesData, double>>[
+              LineSeries<SalesData, double>(
+                dataSource: predictedSales,
+                xValueMapper: (SalesData sales, _) => sales.x,
+                yValueMapper: (SalesData sales, _) => sales.y,
                 name: 'Sales',
                 // Enable data label
               ),
@@ -200,14 +262,25 @@ class _MyHomePageState extends State<_MyHomePage> {
                   dataSource: points,
                   borderWidth: 2.0,
                   color: Colors.amber,
-                  xValueMapper: (_SalesData sales, _) => sales.year,
-                  yValueMapper: (_SalesData sales, _) => sales.sales)
+                  xValueMapper: (SalesData sales, _) => sales.x,
+                  yValueMapper: (SalesData sales, _) => sales.y,
+                  onPointTap: (ChartPointDetails _info){
+                    if(!setPoints){
+                      setState(() {
+                                       Xvalues.remove(_info.pointIndex);
+                      YValues.remove(_info.pointIndex);
+                      points.remove(_info.pointIndex);
+                      print(_info.pointIndex);
+                      });
+                    }
+                  }
+                  
+                  ),
             ],
             onChartTouchInteractionDown: (ChartTouchInteractionArgs _args) {
               var newPoint = _seriesController
                   .pixelToPoint(Offset(_args.position.dx, _args.position.dy));
               if (setPoints) {
-                points.add(_SalesData(newPoint.x, newPoint.y));
 
                 // This function Update the chart scatterpoints
                 updateChart(newPoint);
@@ -224,13 +297,32 @@ class _MyHomePageState extends State<_MyHomePage> {
                           ScaleTransition(scale: animation, child: child),
                       child: _floatingButtom[index],
                       duration: Duration(milliseconds: 300)))),
+
+          Positioned(right:10,
+
+            child:
+            Column(children: [
+             Visibility( 
+              visible: visibility,
+              child:
+             Container(
+              decoration: BoxDecoration(
+                color: Colors.blue,
+                boxShadow: [BoxShadow(
+                color: Colors.blueGrey,
+                blurRadius: 9,
+                
+
+              )]),
+              child: Text("Mean Square error \n $MeanSquaredError", style: TextStyle(fontSize: 20)),
+              height:80, width:230)),
+              Visibility(
+                visible:  pointCounter >= maxPoints,
+                child: 
+              Container(height:50,width:230,color: Colors.red,child: Text("You get to the max points")))
+            ])
+              )
         ]));
   }
 }
 
-class _SalesData {
-  _SalesData(this.year, this.sales);
-
-  final double year;
-  final double sales;
-}

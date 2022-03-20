@@ -1,9 +1,9 @@
 import 'package:scidart/numdart.dart';
 
-class linearRegression {
+class simpleLinearRegression {
   List<double> x_coor;
   List<double> y_coor;
-  linearRegression(this.x_coor, this.y_coor);
+  simpleLinearRegression(List<double> this.x_coor, List<double>  this.y_coor);
 
   List bCoeffients() {
     double xMedian = median(Array(x_coor));
